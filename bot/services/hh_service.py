@@ -53,6 +53,11 @@ class HHService:
         page: int = 0,
         per_page: int = 20,
         search_in_name_only: bool = False,
+        min_salary: int | None = None,
+        remote_only: bool | None = None,
+        freshness_days: int | None = None,
+        employment: str | None = None,
+        experience: str | None = None,
     ) -> dict | None:
         """Search for vacancies with comprehensive logging
 
@@ -62,6 +67,11 @@ class HHService:
             page: Page number (0-based)
             per_page: Number of results per page
             search_in_name_only: If True, search only in vacancy names using 'name:' prefix
+            min_salary: Minimum salary filter
+            remote_only: If True, filter only remote jobs
+            freshness_days: Only vacancies published in last N days (HH 'period' param)
+            employment: Employment type (full, part, project, volunteer, probation)
+            experience: Experience level (no_experience, between1And3, between3And6, moreThan6)
         """
         if not self.session:
             hh_logger.error("HTTP session not initialized")
@@ -80,6 +90,17 @@ class HHService:
 
             if area:
                 params["area"] = area
+            if min_salary is not None:
+                params["salary"] = min_salary
+                params["only_with_salary"] = True
+            if remote_only:
+                params["schedule"] = "remote"
+            if freshness_days:
+                params["period"] = freshness_days
+            if employment:
+                params["employment"] = employment
+            if experience:
+                params["experience"] = experience
 
             response = await self.session.get("/vacancies", params=params)
             response.raise_for_status()

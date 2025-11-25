@@ -1,0 +1,5 @@
+start:
+  commands_list: "• /search [query] — find vacancies\n• send any text — quick search\n• /location &lt;city|clear&gt; — set or clear city filter\n• /profile — view your saved profile\n• /resume — view your resume text\n• /search_settings — tune filters (salary, remote, experience)\n• /preferences — LLM and prompt settings\n• /start — show welcome and save your language"
+  tips: "Keep queries short; set a city for more relevant results."
+  welcome: "🤖 Hello, {name}!\n\nWelcome to the HH Job Search Bot! I can help you find job opportunities on HH.ru.\n\nCommands:\n{commands}\n\nTips: {tips}"
+  error_processing: "Sorry, there was an error processing your request. Please try again later."

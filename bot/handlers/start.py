@@ -8,6 +8,7 @@ from bot.db import UserRepository
 from bot.db.database import get_db_session
 from bot.services.hh_service import hh_service
 from bot.services.openai_service import openai_service
+from bot.utils.i18n import detect_lang, t
 from bot.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -31,6 +32,7 @@ async def start_handler(message: Message):
     username = message.from_user.username or "N/A"
     full_name = f"{message.from_user.first_name} {message.from_user.last_name or ''}".strip()
     language_code = message.from_user.language_code
+    lang = detect_lang(language_code)
 
     logger.info(f"Start command received from user {user_id} (@{username}, {full_name})")
 
@@ -47,6 +49,7 @@ async def start_handler(message: Message):
                     last_name=message.from_user.last_name,
                     language_code=language_code,
                 )
+                lang = detect_lang(user.language_code)
                 logger.debug(f"User {user_id} database record updated/created with ID {user.id}")
             except Exception as e:
                 logger.error(f"Failed to update user {user_id} in database: {e}")
@@ -55,15 +58,9 @@ async def start_handler(message: Message):
         else:
             logger.warning(f"Could not get database session for user {user_id}")
 
-        welcome_message = (
-            f"🤖 Hello, {full_name}!\n\n"
-            f"Welcome to the HH Job Search Bot! I can help you find job opportunities on HH.ru.\n\n"
-            f"Available commands:\n"
-            f"• /start - Show this message\n"
-            f"• /search [query] - Search for job vacancies (e.g., /search python developer)\n"
-            f"• /help - Get help information\n\n"
-            f"I'm ready to assist you with your job search! Send me a search query to find relevant vacancies."
-        )
+        commands_list = t("start.commands_list", lang)
+        tips = t("start.tips", lang)
+        welcome_message = t("start.welcome", lang, name=full_name, commands=commands_list, tips=tips)
 
         await message.answer(welcome_message)
         logger.debug(f"Start message sent to user {user_id}")
@@ -80,6 +77,6 @@ async def start_handler(message: Message):
     except Exception as e:
         logger.error(f"Failed to handle start command for user {user_id}: {e}")
         try:
-            await message.answer("Sorry, there was an error processing your request. Please try again later.")
+            await message.answer(t("start.error_processing", lang))
         except Exception:
             logger.error(f"Failed to send error message to user {user_id}")

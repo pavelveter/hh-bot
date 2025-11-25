@@ -7,6 +7,7 @@ from aiogram.types import Message
 from bot.db import UserRepository
 from bot.db.database import get_db_session
 from bot.services.hh_service import hh_service
+from bot.utils.i18n import detect_lang, t
 from bot.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -28,6 +29,7 @@ async def location_handler(message: Message):
     """Handler for the /location command to set user's city"""
     user_id = str(message.from_user.id)
     username = message.from_user.username or "N/A"
+    lang = detect_lang(message.from_user.language_code if message.from_user else None)
 
     # Extract city name from message
     parts = message.text.split(maxsplit=1)
@@ -37,33 +39,30 @@ async def location_handler(message: Message):
 
     db_session = await get_db_session()
     if not db_session:
-        await message.answer("Sorry, database is unavailable. Please try again later.")
+        await message.answer(t("location.db_unavailable", lang))
         return
 
     try:
         user_repo = UserRepository(db_session)
+        user = await user_repo.get_user_by_tg_id(user_id)
+        if user and user.language_code:
+            lang = detect_lang(user.language_code)
 
         # If no city provided, show current city or help
         if not city_name:
             city_info = await user_repo.get_user_city(user_id)
             if city_info and city_info[0]:
                 await message.answer(
-                    f"📍 Your current location: <b>{city_info[0]}</b>\n\n"
-                    "To change your location, use:\n"
-                    "<code>/location Москва</code>\n"
-                    "<code>/location Санкт-Петербург</code>\n"
-                    "<code>/location Новосибирск</code>\n\n"
-                    "Or use <code>/location clear</code> to remove your location.",
+                    t(
+                        "location.current_city",
+                        lang,
+                        city=city_info[0],
+                    ),
                     parse_mode="HTML",
                 )
             else:
                 await message.answer(
-                    "📍 You haven't set your location yet.\n\n"
-                    "Set your city to filter job searches by location:\n"
-                    "<code>/location Москва</code>\n"
-                    "<code>/location Санкт-Петербург</code>\n"
-                    "<code>/location Новосибирск</code>\n\n"
-                    "Example: <code>/location Москва</code>",
+                    t("location.not_set", lang),
                     parse_mode="HTML",
                 )
             return
@@ -72,51 +71,37 @@ async def location_handler(message: Message):
         if city_name.lower() in ["clear", "удалить", "сбросить", "none", "null"]:
             success = await user_repo.update_user_city(user_id, None, None)
             if success:
-                await message.answer("✅ Location cleared. Job searches will not be filtered by city.")
+                await message.answer(t("location.cleared", lang))
             else:
-                await message.answer("❌ Failed to clear location. Please try again.")
+                await message.answer(t("location.clear_failed", lang))
             return
 
         # Check if HH service is available
         if not hh_service.session:
-            await message.answer("Sorry, the job search service is currently unavailable. Please try again later.")
+            await message.answer(t("search.service_unavailable", lang))
             return
 
         # Find area ID for the city
-        await message.answer(f"🔍 Looking up city '{city_name}'...")
+        await message.answer(t("location.searching", lang).format(city=city_name))
         area_id = await hh_service.find_area_by_name(city_name)
 
         if not area_id:
-            await message.answer(
-                f"❌ City '{city_name}' not found.\n\n"
-                "Please check the spelling and try again.\n"
-                "Common cities:\n"
-                "• Москва\n"
-                "• Санкт-Петербург\n"
-                "• Новосибирск\n"
-                "• Екатеринбург\n"
-                "• Казань\n"
-                "• Нижний Новгород\n"
-                "• Челябинск\n"
-                "• Самара\n"
-                "• Омск\n"
-                "• Ростов-на-Дону"
-            )
+            await message.answer(t("location.not_found", lang).format(city=city_name))
             return
 
         # Update user's city
         success = await user_repo.update_user_city(user_id, city_name, area_id)
         if success:
             await message.answer(
-                f"✅ Location set to: <b>{city_name}</b>\n\n" "All job searches will now be filtered by this city.",
+                t("location.set", lang).format(city=city_name),
                 parse_mode="HTML",
             )
             logger.success(f"User {user_id} set location to {city_name} (area_id: {area_id})")
         else:
-            await message.answer("❌ Failed to set location. Please try again.")
+            await message.answer(t("location.set_failed", lang))
 
     except Exception as e:
         logger.error(f"Failed to handle location command for user {user_id}: {e}")
-        await message.answer("Sorry, there was an error processing your request. Please try again later.")
+        await message.answer(t("location.error_processing", lang))
     finally:
         await db_session.close()

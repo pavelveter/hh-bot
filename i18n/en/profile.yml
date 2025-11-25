@@ -1,0 +1,107 @@
+profile:
+  no_profile: "No profile found.\nUse /start to create your profile."
+  view: |
+    <b>Your Profile</b>
+
+    <b>Telegram ID:</b> {tg_id}
+    <b>Username:</b> {username}
+    <b>Name:</b> {name}
+    <b>City:</b> {city}
+    <b>Desired Position:</b> {desired_position}
+    <b>Skills:</b> {skills}
+
+    <b>Resume:</b>
+    {resume}
+
+    <b>Search Settings:</b>
+    {search_filters}
+
+    <b>LLM Settings:</b>
+    Model: {llm_model}
+    Base URL: {llm_url}
+    API Key: {llm_key}
+  resume_header: '<b>Your Resume</b>'
+  resume_missing: 'No resume saved yet. Use profile settings to add it.'
+  edit_cancelled: 'Edit cancelled.'
+  edit_city_prompt: "Send your new city (or type 'clear' to remove it):"
+  edit_city_empty: 'City name cannot be empty. Please send it again.'
+  edit_city_lookup: "🔍 Looking up city '{city}'..."
+  edit_city_not_found: "❌ City '{city}' not found. Please check the spelling and try again."
+  edit_city_updated: 'City updated to {city}.'
+  edit_city_cleared: "City removed. Searches won't be filtered by location."
+  edit_position_prompt: 'Send desired position:'
+  edit_position_empty: 'Position cannot be empty. Please send it again.'
+  edit_position_cleared: 'Desired position removed.'
+  edit_position_updated: 'Position updated.'
+  edit_name_prompt: 'Send your name in format: <code>First Last</code> (last name optional).'
+  edit_name_empty: 'Name cannot be empty. Please send it again.'
+  edit_name_first_empty: 'First name cannot be empty. Please send it again.'
+  edit_name_updated: 'Name updated.'
+  edit_skills_prompt: "Send your skills (commas, new lines, or bullets are fine). Use 'clear' to remove."
+  edit_skills_empty: 'Skills cannot be empty. Please send them again.'
+  edit_skills_none: 'No skills detected. Please send them as bullets or commas.'
+  edit_skills_cleared: 'Skills removed.'
+  edit_skills_updated: 'Skills updated.'
+  edit_resume_prompt: 'Send your resume text:'
+  edit_resume_empty: 'Resume cannot be empty. Please send it again.'
+  edit_resume_cleared: 'Resume removed.'
+  edit_resume_updated: 'Resume updated.'
+  edit_llm_prompt: "Send LLM settings in format:\n\n<code>model; base_url; api_key</code>"
+  edit_llm_empty: 'LLM settings cannot be empty. Please send them again.'
+  edit_llm_bad_format: "Incorrect format.\nUse: <code>model; base_url; api_key</code>"
+  edit_llm_cleared: 'LLM settings removed.'
+  edit_llm_updated: 'LLM settings updated.'
+  llm_delete_warning: 'Failed to delete message with LLM settings.'
+  preferences_view: "Language: {language}\n\nLLM global prompt (applies to CV generation):\n{prompt}"
+  preferences_prompt: 'Send global LLM prompt (used for CV generation).'
+  preferences_cleared: 'LLM prompt cleared.'
+  preferences_saved: 'LLM prompt saved.'
+  preferences_empty: 'Prompt cannot be empty. Please send it again or type cancel.'
+  preferences_lang_prompt: 'Choose bot language:'
+  preferences_lang_saved: 'Language updated to {language}.'
+  preferences_lang_invalid: 'Unsupported language.'
+  prompt_header: '<b>LLM Prompt</b>'
+  prompt_missing: 'No LLM prompt saved. Use /preferences to set it.'
+  search_filters:
+    min_salary: '- Min salary: {value}'
+    remote: '- Remote only: {state}'
+    freshness: '- Freshness: {value} days'
+    employment: '- Employment: {value}'
+    experience: '- Experience: {value}'
+  on: 'On'
+  on_tick: 'On ✅'
+  off: 'Off'
+  not_set: 'not set'
+  resume_truncated: "…\n\n<b>[Use /resume to view full]</b>"
+  prompt_truncated: "…\n\n<b>[Prompt is too long — send /prompt to view full]</b>"
+  buttons:
+    set_salary: '💰 Set Min Salary'
+    remote: '🏠 Remote: {state}'
+    fresh_off: '⏳ Freshness off'
+    employment: '📌 Employment'
+    experience: '📈 Experience'
+    clear_filters: '🧹 Clear Filters'
+    back_profile: '🔙 Back to Profile'
+    clear_employment: '🧹 Clear employment'
+    clear_experience: '🧹 Clear experience'
+    back: '⬅️ Back'
+    edit_llm_prompt: '🧠 Edit LLM Prompt'
+    clear_llm_prompt: '🧽 Clear LLM Prompt'
+    change_language: '🌐 Change language'
+    edit_city: '🏙️ Edit City'
+    edit_position: '🎯 Edit Position'
+    edit_name: '🪪 Edit Name'
+    edit_skills: '🛠️ Edit Skills'
+    edit_resume: '📄 Edit Resume'
+    llm_settings: '🤖 LLM Settings'
+    search_settings: '🔎 Search Settings'
+    preferences: '⚙️ Preferences'
+  languages:
+    en: 'English'
+    ru: 'Russian'
+  search_settings_title: "<b>Search Settings</b>\n\n{filters}\n\nChoose what to change:"
+  search_set_salary_prompt: "Send minimum salary (number). Use 'clear' to remove."
+  search_salary_invalid: "Please send only digits for salary (or 'clear')."
+  search_employment_title: "<b>Employment type</b>\nChoose one:"
+  search_experience_title: "<b>Experience</b>\nChoose one:"
+  search_city_service_unavailable: 'Job search service is unavailable right now. Please try again in a moment.'

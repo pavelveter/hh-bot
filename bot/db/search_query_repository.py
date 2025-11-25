@@ -81,3 +81,23 @@ class SearchQueryRepository:
         except Exception as e:
             self.logger.error(f"Error getting latest search query for user {user_id}: {e}")
             raise
+
+    async def get_latest_search_query_any(self, user_id: int) -> SearchQuery | None:
+        """Get the most recent search query for a user (any text)"""
+        try:
+            stmt = (
+                select(SearchQuery)
+                .where(SearchQuery.user_id == user_id)
+                .order_by(SearchQuery.created_at.desc())
+                .limit(1)
+            )
+            result = await self.session.execute(stmt)
+            query = result.scalar_one_or_none()
+            if query:
+                self.logger.debug(
+                    f"Retrieved latest search query {query.id} for user {user_id} (text='{query.query_text}')"
+                )
+            return query
+        except Exception as e:
+            self.logger.error(f"Error getting latest search query for user {user_id}: {e}")
+            raise

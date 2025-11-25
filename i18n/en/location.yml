@@ -1,0 +1,11 @@
+location:
+  db_unavailable: "Sorry, database is unavailable. Please try again later."
+  current_city: "📍 Your current location: <b>{city}</b>\n\nTo change your location, use:\n<code>/location Москва</code>\n<code>/location Санкт-Петербург</code>\n<code>/location Новосибирск</code>\n\nOr use <code>/location clear</code> to remove your location."
+  not_set: "📍 You haven't set your location yet.\n\nSet your city to filter job searches by location:\n<code>/location Москва</code>\n<code>/location Санкт-Петербург</code>\n<code>/location Новосибирск</code>\n\nExample: <code>/location Москва</code>"
+  cleared: "✅ Location cleared. Job searches will not be filtered by city."
+  clear_failed: "❌ Failed to clear location. Please try again."
+  searching: "🔍 Looking up city '{city}'..."
+  not_found: "❌ City '{city}' not found.\n\nPlease check the spelling and try again.\nCommon cities:\n• Москва\n• Санкт-Петербург\n• Новосибирск\n• Екатеринбург\n• Казань\n• Нижний Новгород\n• Челябинск\n• Самара\n• Омск\n• Ростов-на-Дону"
+  set: "✅ Location set to: <b>{city}</b>\n\nAll job searches will now be filtered by this city."
+  set_failed: "❌ Failed to set location. Please try again."
+  error_processing: "Sorry, there was an error processing your request. Please try again later."

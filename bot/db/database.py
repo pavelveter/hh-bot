@@ -87,7 +87,7 @@ async def init_database():
             logger.success("Connected to Neon successfully")
             return True
         except OperationalError as e:
-            logger.warning(f"Neon cold start, retrying {attempt+1}/5: {e}")
+            logger.warning(f"Neon cold start, retrying {attempt + 1}/5: {e}")
             await asyncio.sleep(1.5)
 
     logger.error("Failed to connect to Neon after retries")

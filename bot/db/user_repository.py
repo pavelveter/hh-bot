@@ -25,7 +25,15 @@ class UserRepository:
 
             if user:
                 # Update user info if provided
-                update_data = {k: v for k, v in kwargs.items() if hasattr(user, k) and v is not None}
+                update_data = {}
+                for k, v in kwargs.items():
+                    if not hasattr(user, k) or v is None:
+                        continue
+                    if k in {"first_name", "last_name"} and getattr(user, k):
+                        continue  # keep user-provided names
+                    if k == "language_code" and getattr(user, k):
+                        continue  # preserve user-selected language
+                    update_data[k] = v
                 if update_data:
                     update_stmt = update(User).where(User.tg_user_id == tg_user_id).values(**update_data)
                     await self.session.execute(update_stmt)
@@ -81,6 +89,59 @@ class UserRepository:
             await self.session.rollback()
             raise
 
+    async def update_preferences(self, tg_user_id: str, **kwargs) -> bool:
+        """Merge provided preference fields into existing preferences JSON"""
+        if not kwargs:
+            return True
+
+        try:
+            # Get current preferences
+            stmt = select(User).where(User.tg_user_id == tg_user_id)
+            result = await self.session.execute(stmt)
+            user = result.scalar_one_or_none()
+
+            if not user:
+                self.logger.warning(f"No user found to update preferences for {tg_user_id}")
+                return False
+
+            current = dict(user.preferences or {})
+            updated = current.copy()
+
+            for key, value in kwargs.items():
+                if value is None:
+                    updated.pop(key, None)
+                else:
+                    updated[key] = value
+
+            if updated == current:
+                self.logger.debug(f"No preference changes detected for user {tg_user_id}")
+                return True
+
+            update_stmt = update(User).where(User.tg_user_id == tg_user_id).values(preferences=updated)
+            await self.session.execute(update_stmt)
+            await self.session.commit()
+            self.logger.info(f"Updated preferences for user {tg_user_id}: {list(kwargs.keys())}")
+            return True
+        except Exception as e:
+            self.logger.error(f"Error merging preferences for user {tg_user_id}: {e}")
+            await self.session.rollback()
+            raise
+
+    async def update_language_code(self, tg_user_id: str, language_code: str) -> bool:
+        try:
+            stmt = update(User).where(User.tg_user_id == tg_user_id).values(language_code=language_code)
+            result = await self.session.execute(stmt)
+            await self.session.commit()
+            if result.rowcount:
+                self.logger.info(f"Updated language for user {tg_user_id} to {language_code}")
+                return True
+            self.logger.warning(f"No user found to update language for {tg_user_id}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Error updating language for user {tg_user_id}: {e}")
+            await self.session.rollback()
+            raise
+
     async def update_user_city(self, tg_user_id: str, city: str, hh_area_id: str | None = None) -> bool:
         """Update user's city and HH.ru area ID"""
         try:
@@ -111,3 +172,78 @@ class UserRepository:
         except Exception as e:
             self.logger.error(f"Error getting city for user {tg_user_id}: {e}")
             return None
+
+    async def get_user_by_tg_id(self, tg_id: str):
+        stmt = select(User).where(User.tg_user_id == tg_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def update_user_name(
+        self, tg_user_id: str, first_name: str | None = None, last_name: str | None = None
+    ) -> bool:
+        """Update user's first/last name"""
+        if first_name is None and last_name is None:
+            return True
+        try:
+            update_data = {}
+            if first_name is not None:
+                update_data["first_name"] = first_name
+            if last_name is not None:
+                update_data["last_name"] = last_name
+
+            stmt = update(User).where(User.tg_user_id == tg_user_id).values(**update_data)
+            result = await self.session.execute(stmt)
+            await self.session.commit()
+
+            if result.rowcount > 0:
+                self.logger.info(
+                    f"Updated name for user {tg_user_id}: "
+                    f"{'first_name' if 'first_name' in update_data else ''} "
+                    f"{'last_name' if 'last_name' in update_data else ''}"
+                )
+                return True
+            self.logger.warning(f"No user found to update name for {tg_user_id}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Error updating name for user {tg_user_id}: {e}")
+            await self.session.rollback()
+            raise
+
+    async def update_search_filters(self, tg_user_id: str, **kwargs) -> bool:
+        """Merge search filter fields into preferences.search_filters"""
+        if not kwargs:
+            return True
+        try:
+            stmt = select(User).where(User.tg_user_id == tg_user_id)
+            result = await self.session.execute(stmt)
+            user = result.scalar_one_or_none()
+
+            if not user:
+                self.logger.warning(f"No user found to update search filters for {tg_user_id}")
+                return False
+
+            prefs = dict(user.preferences or {})
+            filters = dict(prefs.get("search_filters") or {})
+
+            changed = False
+            for key, value in kwargs.items():
+                if value is None:
+                    if key in filters:
+                        filters.pop(key, None)
+                        changed = True
+                else:
+                    if filters.get(key) != value:
+                        filters[key] = value
+                        changed = True
+
+            if not changed:
+                self.logger.debug(f"No search filter changes for user {tg_user_id}")
+                return True
+
+            prefs["search_filters"] = filters
+            await self.update_user_preferences(tg_user_id, prefs)
+            return True
+        except Exception as e:
+            self.logger.error(f"Error updating search filters for user {tg_user_id}: {e}")
+            await self.session.rollback()
+            raise

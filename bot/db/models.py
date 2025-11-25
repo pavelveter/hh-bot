@@ -66,3 +66,13 @@ class UserSearchResult(Base):
     position = Column(Integer, nullable=False)  # Position in search results
     clicked = Column(Boolean, default=False)  # Whether the user clicked on this result
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class CV(Base):
+    __tablename__ = "cv"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    vacancy_id = Column(Integer, nullable=False, index=True)
+    text = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

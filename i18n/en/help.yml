@@ -1,0 +1,3 @@
+help:
+  text: "📋 <b>HH Bot Help</b>\n\nCommands:\n{commands}\n\nTips: {tips}"
+  error_processing: "Sorry, there was an error processing your request. Please try again later."

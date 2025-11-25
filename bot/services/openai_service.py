@@ -4,6 +4,7 @@ import openai
 
 from bot.config import settings
 from bot.utils.logging import get_logger
+from bot.utils.prompt_loader import load_prompt
 
 # Create logger for this module
 openai_logger = get_logger(__name__)
@@ -54,21 +55,37 @@ class OpenAIService:
         model: str = "gpt-3.5-turbo",
         temperature: float = 0.7,
         max_tokens: int | None = None,
+        llm_overrides: dict | None = None,
     ) -> str | None:
         """Create a chat completion with comprehensive logging"""
-        if not self._initialized or not self.client:
-            openai_logger.error("OpenAI service not initialized")
+        # Resolve model/connection parameters
+        override_model = llm_overrides.get("model") if llm_overrides else None
+        override_api_key = llm_overrides.get("api_key") if llm_overrides else None
+        override_base_url = llm_overrides.get("base_url") if llm_overrides else None
+
+        actual_model = override_model or (model if model != "gpt-3.5-turbo" else self.settings.LLM_MODEL)
+
+        # Decide which client to use
+        client = self.client
+        if override_api_key or override_base_url:
+            client_params = {"api_key": override_api_key or self.settings.LLM_API_KEY}
+            if override_base_url:
+                client_params["base_url"] = override_base_url
+            client = openai.AsyncOpenAI(**client_params)
+
+        if not client:
+            openai_logger.error("OpenAI client not available (init missing and no overrides provided)")
             return None
 
         request_id = f"chat_{hash(str(messages)) % 10000}"
-        openai_logger.debug(f"[{request_id}] Creating chat completion with model {model}")
+        openai_logger.debug(
+            f"[{request_id}] Creating chat completion with model {actual_model}"
+            + (" using overrides" if llm_overrides else "")
+        )
 
         start_time = asyncio.get_event_loop().time()
 
         try:
-            # Use the configured default model if no specific model is provided
-            actual_model = model if model != "gpt-3.5-turbo" else self.settings.LLM_MODEL
-
             params = {
                 "model": actual_model,
                 "messages": messages,
@@ -78,14 +95,21 @@ class OpenAIService:
             if max_tokens:
                 params["max_tokens"] = max_tokens
 
-            response = await self.client.chat.completions.create(**params)
+            response = await client.chat.completions.create(**params)
 
             execution_time = asyncio.get_event_loop().time() - start_time
             content = response.choices[0].message.content if response.choices else ""
 
-            openai_logger.success(
-                f"[{request_id}] Chat completion completed in {execution_time:.3f}s using model {actual_model}, response length: {len(content) if content else 0} chars"
-            )
+            if not content or not str(content).strip():
+                openai_logger.warning(
+                    f"[{request_id}] Empty response from LLM (model={actual_model}, "
+                    f"time={execution_time:.3f}s, choices={len(response.choices) if response.choices else 0})"
+                )
+                return ""
+            else:
+                openai_logger.success(
+                    f"[{request_id}] Chat completion completed in {execution_time:.3f}s using model {actual_model}, response length: {len(content)} chars"
+                )
 
             return content
         except openai.APIError as e:
@@ -107,20 +131,20 @@ class OpenAIService:
         try:
             # Prepare vacancy information for analysis
             vacancy_info = f"""
-            Vacancy: {vacancy_data.get('name', 'N/A')}
-            Company: {vacancy_data.get('employer', {}).get('name', 'N/A') if isinstance(vacancy_data.get('employer'), dict) else 'N/A'}
-            Salary: {vacancy_data.get('salary', 'N/A')}
-            Area: {vacancy_data.get('area', {}).get('name', 'N/A') if isinstance(vacancy_data.get('area'), dict) else 'N/A'}
-            Experience: {vacancy_data.get('experience', {}).get('name', 'N/A') if isinstance(vacancy_data.get('experience'), dict) else 'N/A'}
-            Employment: {vacancy_data.get('employment', {}).get('name', 'N/A') if isinstance(vacancy_data.get('employment'), dict) else 'N/A'}
-            Schedule: {vacancy_data.get('schedule', {}).get('name', 'N/A') if isinstance(vacancy_data.get('schedule'), dict) else 'N/A'}
-            Description: {vacancy_data.get('description', 'N/A')[0:500]}...
+            Vacancy: {vacancy_data.get("name", "N/A")}
+            Company: {vacancy_data.get("employer", {}).get("name", "N/A") if isinstance(vacancy_data.get("employer"), dict) else "N/A"}
+            Salary: {vacancy_data.get("salary", "N/A")}
+            Area: {vacancy_data.get("area", {}).get("name", "N/A") if isinstance(vacancy_data.get("area"), dict) else "N/A"}
+            Experience: {vacancy_data.get("experience", {}).get("name", "N/A") if isinstance(vacancy_data.get("experience"), dict) else "N/A"}
+            Employment: {vacancy_data.get("employment", {}).get("name", "N/A") if isinstance(vacancy_data.get("employment"), dict) else "N/A"}
+            Schedule: {vacancy_data.get("schedule", {}).get("name", "N/A") if isinstance(vacancy_data.get("schedule"), dict) else "N/A"}
+            Description: {vacancy_data.get("description", "N/A")[0:500]}...
             """
 
             messages = [
                 {
                     "role": "system",
-                    "content": "You are a professional career advisor. Analyze job vacancies and provide insights about the position, required skills, and career prospects. Keep your response concise and informative.",
+                    "content": load_prompt("analyze_vacancy_system"),
                 },
                 {
                     "role": "user",
@@ -153,7 +177,7 @@ class OpenAIService:
             messages = [
                 {
                     "role": "system",
-                    "content": "You are a helpful assistant for job seekers. You help users find and analyze job vacancies from HH.ru. Provide concise, helpful responses.",
+                    "content": load_prompt("user_response_system"),
                 }
             ]
 

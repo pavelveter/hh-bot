@@ -6,9 +6,10 @@ Script to clear all data from the database by deleting all rows from all tables.
 import asyncio
 import sys
 
-from bot.config import settings
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
+
+from bot.config import settings
 
 
 async def clear_database():

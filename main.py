@@ -2,6 +2,7 @@ import asyncio
 import os
 
 from aiogram import Bot, Dispatcher
+
 from bot.config import settings
 from bot.db.database import close_database, init_database
 from bot.handlers import register_all_handlers
