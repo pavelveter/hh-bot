@@ -9,7 +9,7 @@ from bot.db.user_repository import UserRepository
 from bot.handlers.profile.keyboards import profile_keyboard
 from bot.utils.i18n import detect_lang, t
 from bot.utils.logging import get_logger
-from bot.utils.profile_helpers import format_search_filters, hide_key, short
+from bot.utils.profile_helpers import build_skills_preview, format_search_filters, hide_key, short
 
 logger = get_logger(__name__)
 router = Router()
@@ -35,7 +35,8 @@ async def send_profile_view(tg_id: str, message_obj: types.Message):
     city = html.escape(user.city) if user.city else "not set"
     desired_position = html.escape(prefs.get("desired_position", "")) if prefs.get("desired_position") else "not set"
     skills_list = prefs.get("skills", [])
-    skills = ", ".join(html.escape(s) for s in skills_list) if skills_list else "not set"
+    skills_count, skills_preview = build_skills_preview(skills_list)
+    skills = f"{skills_count} ({html.escape(skills_preview)})" if skills_count else t("profile.not_set", lang)
     llm_model = html.escape(llm.get("model")) if llm.get("model") else "not set"
     llm_url = html.escape(llm.get("base_url")) if llm.get("base_url") else "not set"
     llm_key = hide_key(llm.get("api_key"))
@@ -69,7 +70,7 @@ async def send_profile_view(tg_id: str, message_obj: types.Message):
         llm_key=llm_key,
     )
 
-    await message_obj.answer(text, parse_mode="HTML", reply_markup=profile_keyboard(lang))
+    await message_obj.answer(text, parse_mode="HTML", reply_markup=profile_keyboard(lang, skills_count, skills_preview))
 
 
 @router.message(Command("profile"))

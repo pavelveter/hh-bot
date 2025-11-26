@@ -154,7 +154,22 @@ def preferences_keyboard(has_prompt: bool, lang: str) -> InlineKeyboardMarkup:
     )
 
 
-def profile_keyboard(lang: str) -> InlineKeyboardMarkup:
+def skills_keyboard(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=t("profile.buttons.edit_skills", lang),
+                    callback_data="edit_skills",
+                )
+            ],
+            [InlineKeyboardButton(text=t("profile.buttons.back_profile", lang), callback_data="skills_back_profile")],
+        ]
+    )
+
+
+def profile_keyboard(lang: str, skills_count: int = 0, skills_preview: str | None = None) -> InlineKeyboardMarkup:
+    skills_button_label = t("profile.buttons.skills_menu", lang)
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -162,13 +177,10 @@ def profile_keyboard(lang: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=t("profile.buttons.edit_city", lang), callback_data="edit_city"),
             ],
             [
+                InlineKeyboardButton(text=t("profile.buttons.edit_position", lang), callback_data="edit_position"),
                 InlineKeyboardButton(
-                    text=t("profile.buttons.edit_position", lang),
-                    callback_data="edit_position",
-                ),
-                InlineKeyboardButton(
-                    text=t("profile.buttons.edit_skills", lang),
-                    callback_data="edit_skills",
+                    text=skills_button_label,
+                    callback_data="skills_menu",
                 ),
             ],
             [

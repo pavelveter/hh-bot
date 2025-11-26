@@ -13,8 +13,6 @@ uv.lock
 
 # --- Environment ---
 .env
-.env.*
-!.env.example
 
 # --- Bytecode cache ---
 .pytest_cache/

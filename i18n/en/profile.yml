@@ -44,6 +44,8 @@ profile:
   edit_skills_none: 'No skills detected. Please send them as bullets or commas.'
   edit_skills_cleared: 'Skills removed.'
   edit_skills_updated: 'Skills updated.'
+  skills_menu: "<b>Skills ({count})</b>\n\n{skills}\n\nSkills are shown as code so you can copy them easily."
+  skills_menu_empty: "<b>Skills</b>\n\nNo skills yet. Add them to improve matching."
   edit_resume_prompt: 'Send your resume text:'
   edit_resume_empty: 'Resume cannot be empty. Please send it again.'
   edit_resume_cleared: 'Resume removed.'
@@ -87,7 +89,8 @@ profile:
     edit_city: '🏙️ Edit City'
     edit_position: '🎯 Edit Position'
     edit_name: '🪪 Edit Name'
-    edit_skills: '🛠️ Edit Skills'
+    skills_menu: '🛠️ Skills'
+    edit_skills: '✏️ Edit Skills'
     edit_resume: '📄 Edit Resume'
     llm_settings: '🤖 LLM Settings'
     search_settings: '🔎 Search Settings'

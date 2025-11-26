@@ -1,4 +1,5 @@
 import html
+import math
 
 from bot.utils.i18n import t
 
@@ -41,6 +42,30 @@ def normalize_skills(raw: str) -> list[str]:
         seen.add(key)
         skills.append(item)
     return skills
+
+
+def build_skills_preview(skills: list[str] | None, max_items: int = 5) -> tuple[int, str]:
+    """Return total count and a spaced preview across the list (start/middle/end)."""
+    cleaned = [s.strip().replace("\n", " ") for s in (skills or []) if s and s.strip()]
+    count = len(cleaned)
+    if count == 0:
+        return 0, ""
+
+    if count <= max_items:
+        selected = cleaned
+    else:
+        span = count - 1
+        indices = [math.floor(i * span / (max_items - 1)) for i in range(max_items)]
+        seen = set()
+        selected: list[str] = []
+        for idx in indices:
+            if idx in seen:
+                continue
+            seen.add(idx)
+            selected.append(cleaned[idx])
+
+    preview = ", ".join(selected)
+    return count, preview
 
 
 def format_search_filters(filters: dict | None, lang: str) -> str:
