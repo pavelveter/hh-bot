@@ -2,7 +2,7 @@ from aiogram import Router
 from aiogram.types import CallbackQuery
 
 from bot.db import CVRepository, CVType, UserRepository
-from bot.db.database import get_db_session
+from bot.db.database import db_session
 from bot.handlers.search.common import format_document_header, safe_answer
 from bot.handlers.search.vacancy.prompts import DOCUMENT_META
 from bot.services.openai_service import openai_service
@@ -42,25 +42,23 @@ async def _parse_callback(callback: CallbackQuery, lang: str) -> tuple[CVType, d
 
 
 async def _get_user_and_lang(callback: CallbackQuery, lang: str) -> tuple[int | None, object | None, str]:
-    db_session = await get_db_session()
     user_db_id = None
     user_obj = None
-    if db_session:
-        try:
-            user_repo = UserRepository(db_session)
-            user_obj = await user_repo.get_or_create_user(
-                tg_user_id=str(callback.from_user.id),
-                username=callback.from_user.username,
-                first_name=callback.from_user.first_name,
-                last_name=callback.from_user.last_name,
-                language_code=callback.from_user.language_code,
-            )
-            lang = detect_lang(user_obj.language_code)
-            user_db_id = user_obj.id
-        except Exception as e:
-            logger.error(f"Failed to get user {callback.from_user.id} from database: {e}")
-        finally:
-            await db_session.close()
+    async with db_session() as session:
+        if session:
+            try:
+                user_repo = UserRepository(session)
+                user_obj = await user_repo.get_or_create_user(
+                    tg_user_id=str(callback.from_user.id),
+                    username=callback.from_user.username,
+                    first_name=callback.from_user.first_name,
+                    last_name=callback.from_user.last_name,
+                    language_code=callback.from_user.language_code,
+                )
+                lang = detect_lang(user_obj.language_code)
+                user_db_id = user_obj.id
+            except Exception as e:
+                logger.error(f"Failed to get user {callback.from_user.id} from database: {e}")
     return user_db_id, user_obj, lang
 
 
@@ -80,16 +78,16 @@ async def _get_vacancy(user_db_id: int, query: str, idx: int, lang: str, callbac
 async def _get_existing_doc(
     user_db_id: int, vacancy_db_id: int, doc_type: CVType
 ) -> tuple[CVRepository | None, object | None]:
-    db_session = await get_db_session()
-    if not db_session:
-        return None, None
-    cv_repo = CVRepository(db_session)
-    try:
-        existing_doc = await cv_repo.get_cv(user_db_id, vacancy_db_id, doc_type)
-        return cv_repo, existing_doc
-    except Exception as e:
-        logger.error(f"Failed to fetch cached doc type={int(doc_type)} for user {user_db_id}: {e}")
-        return cv_repo, None
+    async with db_session() as session:
+        if not session:
+            return None, None
+        cv_repo = CVRepository(session)
+        try:
+            existing_doc = await cv_repo.get_cv(user_db_id, vacancy_db_id, doc_type)
+            return cv_repo, existing_doc
+        except Exception as e:
+            logger.error(f"Failed to fetch cached doc type={int(doc_type)} for user {user_db_id}: {e}")
+            return cv_repo, None
 
 
 @router.callback_query(lambda c: c.data.startswith("vacancy_cv:") or c.data.startswith("vacancy_doc:"))

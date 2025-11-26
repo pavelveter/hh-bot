@@ -1,7 +1,7 @@
 from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 
-from bot.db.database import get_db_session
+from bot.db.database import db_session
 from bot.db.user_repository import UserRepository
 from bot.handlers.profile.states import EditProfile
 from bot.utils.i18n import t
@@ -44,7 +44,7 @@ async def save_name(message: types.Message, state: FSMContext):
             await message.answer(t("profile.edit_name_first_empty", lang))
             return
 
-    async with await get_db_session() as session:
+    async with db_session() as session:
         repo = UserRepository(session)
         await repo.update_user_name(user_id, first_name=first, last_name=last)
 

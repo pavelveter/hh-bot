@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from sqlalchemy import text
@@ -106,3 +107,17 @@ async def get_db_session() -> AsyncSession:
         logger.error("SessionLocal not initialized")
         return None
     return SessionLocal()
+
+
+@asynccontextmanager
+async def db_session() -> AsyncSession | None:
+    """Async context manager that yields a DB session and closes it safely."""
+    session = await get_db_session()
+    try:
+        yield session
+    finally:
+        try:
+            if session:
+                await session.close()
+        except Exception as e:
+            logger.warning(f"Failed to close DB session: {e}")

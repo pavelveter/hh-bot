@@ -1,11 +1,10 @@
 from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 
-from bot.db.database import get_db_session
-from bot.db.user_repository import UserRepository
 from bot.handlers.profile.states import EditProfile
 from bot.utils.i18n import t
 from bot.utils.lang import resolve_lang
+from bot.utils.profile_edit import is_clear_command, update_user_prefs
 
 router = Router()
 
@@ -28,17 +27,13 @@ async def save_position(message: types.Message, state: FSMContext):
         await message.answer(t("profile.edit_position_empty", lang))
         return
 
-    if position.lower() in {"clear", "удалить", "сбросить", "none", "null"}:
-        async with await get_db_session() as session:
-            repo = UserRepository(session)
-            await repo.update_preferences(user_id, desired_position=None)
+    if is_clear_command(position):
+        await update_user_prefs(user_id, desired_position=None)
         await message.answer(t("profile.edit_position_cleared", lang))
         await state.clear()
         return
 
-    async with await get_db_session() as session:
-        repo = UserRepository(session)
-        await repo.update_preferences(user_id, desired_position=position)
+    await update_user_prefs(user_id, desired_position=position)
 
     await message.answer(t("profile.edit_position_updated", lang))
     await state.clear()

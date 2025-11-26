@@ -1,9 +1,10 @@
 from aiogram import Router
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
-from bot.db import CVRepository, CVType, UserRepository
-from bot.db.database import get_db_session
+from bot.db import CVRepository, CVType
+from bot.db.database import db_session
 from bot.handlers.search.common import VACANCIES_PER_PAGE, safe_answer
+from bot.handlers.search.helpers import get_or_create_user_lang
 from bot.utils.i18n import detect_lang, t
 from bot.utils.logging import get_logger
 from bot.utils.search import format_vacancy_details, get_vacancies_from_db
@@ -28,24 +29,8 @@ async def vacancy_detail_handler(callback: CallbackQuery):
         query = parts[1]
         idx = int(parts[2])
 
-        db_session = await get_db_session()
-        user_db_id = None
-        if db_session:
-            try:
-                user_repo = UserRepository(db_session)
-                user = await user_repo.get_or_create_user(
-                    tg_user_id=user_id,
-                    username=callback.from_user.username,
-                    first_name=callback.from_user.first_name,
-                    last_name=callback.from_user.last_name,
-                    language_code=callback.from_user.language_code,
-                )
-                lang = detect_lang(user.language_code)
-                user_db_id = user.id
-            except Exception as e:
-                logger.error(f"Failed to get user {user_id} from database: {e}")
-            finally:
-                await db_session.close()
+        user_obj, lang = await get_or_create_user_lang(callback)
+        user_db_id = user_obj.id if user_obj else None
 
         if not user_db_id:
             await safe_answer(callback, text=t("search.vacancy_detail.user_not_found", lang), show_alert=True)
@@ -65,18 +50,18 @@ async def vacancy_detail_handler(callback: CallbackQuery):
         cover_buttons: list[InlineKeyboardButton] = []
         preview_blocks: list[str] = []
         if vacancy_db_id and user_db_id:
-            db_session = await get_db_session()
             cv = None
             cover_letter = None
-            if db_session:
-                try:
-                    cv_repo = CVRepository(db_session)
-                    cv = await cv_repo.get_cv(user_db_id, vacancy_db_id, CVType.CV)
-                    cover_letter = await cv_repo.get_cv(user_db_id, vacancy_db_id, CVType.COVER_LETTER)
-                except Exception as e:
-                    logger.error(f"Failed to fetch CV/cover cache for user {user_db_id}, vacancy {vacancy_db_id}: {e}")
-                finally:
-                    await db_session.close()
+            async with db_session() as session:
+                if session:
+                    try:
+                        cv_repo = CVRepository(session)
+                        cv = await cv_repo.get_cv(user_db_id, vacancy_db_id, CVType.CV)
+                        cover_letter = await cv_repo.get_cv(user_db_id, vacancy_db_id, CVType.COVER_LETTER)
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to fetch CV/cover cache for user {user_db_id}, vacancy {vacancy_db_id}: {e}"
+                        )
 
             if cv:
                 cv_preview = (cv.text[:400] + "…") if len(cv.text) > 400 else cv.text

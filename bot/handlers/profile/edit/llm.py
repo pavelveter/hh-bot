@@ -3,7 +3,7 @@ import html
 from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 
-from bot.db.database import get_db_session
+from bot.db.database import db_session
 from bot.db.user_repository import UserRepository
 from bot.handlers.profile.keyboards import llm_keyboard
 from bot.handlers.profile.states import EditProfile
@@ -17,7 +17,7 @@ router = Router()
 
 
 async def send_llm_menu(message_obj: types.Message | types.CallbackQuery, tg_id: str, edit: bool = False):
-    async with await get_db_session() as session:
+    async with db_session() as session:
         repo = UserRepository(session)
         user = await repo.get_user_by_tg_id(tg_id)
 
@@ -92,7 +92,7 @@ async def save_llm(message: types.Message, state: FSMContext):
         return
 
     if llm_raw.lower() in {"clear", "удалить", "сбросить", "none", "null"}:
-        async with await get_db_session() as session:
+        async with db_session() as session:
             repo = UserRepository(session)
             await repo.update_preferences(user_id, llm_settings=None)
         await message.answer(t("profile.edit_llm_cleared", lang))
@@ -106,7 +106,7 @@ async def save_llm(message: types.Message, state: FSMContext):
         await message.answer(t("profile.edit_llm_bad_format", lang), parse_mode="HTML")
         return
 
-    async with await get_db_session() as session:
+    async with db_session() as session:
         repo = UserRepository(session)
         await repo.update_preferences(user_id, llm_settings={"model": model, "base_url": url, "api_key": key})
 

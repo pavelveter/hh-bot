@@ -3,7 +3,7 @@ import html
 from aiogram import F, Router, types
 from aiogram.fsm.context import FSMContext
 
-from bot.db.database import get_db_session
+from bot.db.database import db_session
 from bot.db.user_repository import UserRepository
 from bot.handlers.profile.states import EditProfile
 from bot.services.hh_service import hh_service
@@ -36,7 +36,7 @@ async def send_city_menu(
     message_id: int | None = None,
 ):
     tg_id = str(message_obj.from_user.id) if message_obj.from_user else None
-    async with await get_db_session() as session:
+    async with db_session() as session:
         repo = UserRepository(session)
         user = await repo.get_user_by_tg_id(tg_id) if tg_id else None
 
@@ -156,7 +156,7 @@ async def cb_city_pick(call: types.CallbackQuery, state: FSMContext):
         await call.answer()
         return
 
-    async with await get_db_session() as session:
+    async with db_session() as session:
         repo = UserRepository(session)
         user = await repo.get_user_by_tg_id(str(call.from_user.id))
 
@@ -199,7 +199,7 @@ async def save_city(message: types.Message, state: FSMContext):
         return
 
     if city_input.lower() in {"clear", "удалить", "сбросить", "none", "null"}:
-        async with await get_db_session() as session:
+        async with db_session() as session:
             repo = UserRepository(session)
             await repo.update_user_city(user_id, None, None)
         await message.answer(t("profile.edit_city_cleared", lang))
@@ -217,7 +217,7 @@ async def save_city(message: types.Message, state: FSMContext):
         await message.answer(t("profile.edit_city_not_found", lang).format(city=city_input))
         return
 
-    async with await get_db_session() as session:
+    async with db_session() as session:
         repo = UserRepository(session)
         user = await repo.get_user_by_tg_id(user_id)
         prefs = user.preferences or {} if user else {}

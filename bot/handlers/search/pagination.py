@@ -1,9 +1,8 @@
 from aiogram import Router
 from aiogram.types import CallbackQuery
 
-from bot.db import UserRepository
-from bot.db.database import get_db_session
 from bot.handlers.search.common import VACANCIES_PER_PAGE, build_search_keyboard, safe_answer
+from bot.handlers.search.helpers import get_or_create_user_lang
 from bot.utils.i18n import detect_lang, t
 from bot.utils.logging import get_logger
 from bot.utils.search import format_search_page, get_vacancies_from_db
@@ -37,25 +36,8 @@ async def pagination_handler(callback: CallbackQuery):
 
         logger.info(f"Pagination request from user {user_id} (@{username}): query '{query}', page {page}")
 
-        # Get user from database
-        db_session = await get_db_session()
-        user_db_id = None
-        if db_session:
-            try:
-                user_repo = UserRepository(db_session)
-                user = await user_repo.get_or_create_user(
-                    tg_user_id=user_id,
-                    username=callback.from_user.username,
-                    first_name=callback.from_user.first_name,
-                    last_name=callback.from_user.last_name,
-                    language_code=callback.from_user.language_code,
-                )
-                lang = detect_lang(user.language_code)
-                user_db_id = user.id
-            except Exception as e:
-                logger.error(f"Failed to get user {user_id} from database: {e}")
-            finally:
-                await db_session.close()
+        user_obj, lang = await get_or_create_user_lang(callback)
+        user_db_id = user_obj.id if user_obj else None
 
         if not user_db_id:
             await safe_answer(callback, text=t("search.pagination.user_not_found", lang), show_alert=True)

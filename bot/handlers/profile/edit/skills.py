@@ -4,13 +4,12 @@ from aiogram import F, Router, types
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 
-from bot.db.database import get_db_session
-from bot.db.user_repository import UserRepository
 from bot.handlers.profile.keyboards import skills_keyboard
 from bot.handlers.profile.states import EditProfile
 from bot.utils.i18n import detect_lang, t
 from bot.utils.lang import resolve_lang
 from bot.utils.logging import get_logger
+from bot.utils.profile_edit import is_clear_command, load_user, update_user_prefs
 from bot.utils.profile_helpers import normalize_skills
 
 logger = get_logger(__name__)
@@ -24,9 +23,7 @@ async def send_skills_menu(
     chat_id: int | None = None,
     message_id: int | None = None,
 ):
-    async with await get_db_session() as session:
-        repo = UserRepository(session)
-        user = await repo.get_user_by_tg_id(tg_id)
+    user = await load_user(tg_id)
 
     lang = detect_lang(
         user.language_code
@@ -156,10 +153,8 @@ async def save_skills(message: types.Message, state: FSMContext):
         await message.answer(t("profile.edit_skills_empty", lang))
         return
 
-    if skills_input.lower() in {"clear", "удалить", "сбросить", "none", "null"}:
-        async with await get_db_session() as session:
-            repo = UserRepository(session)
-            await repo.update_preferences(user_id, skills=None)
+    if is_clear_command(skills_input):
+        await update_user_prefs(user_id, skills=None)
         confirm = await message.answer(t("profile.edit_skills_cleared", lang))
         await send_skills_menu(
             message,
@@ -179,9 +174,7 @@ async def save_skills(message: types.Message, state: FSMContext):
         await message.answer(t("profile.edit_skills_none", lang))
         return
 
-    async with await get_db_session() as session:
-        repo = UserRepository(session)
-        await repo.update_preferences(user_id, skills=skills)
+    await update_user_prefs(user_id, skills=skills)
 
     confirm = await message.answer(t("profile.edit_skills_updated", lang))
     await send_skills_menu(
