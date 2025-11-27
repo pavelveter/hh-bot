@@ -22,6 +22,7 @@ async def perform_search(
     all_items: list[dict] = []
     total_found = 0
     page = 0
+    pages_count = 0
     max_retries = 3
     retry_delay = 2  # seconds
 
@@ -87,7 +88,7 @@ async def perform_search(
             total_found = page_results.get("found", 0)
             pages_count = page_results.get("pages", 0)
 
-        if page >= pages_count - 1:
+        if pages_count and page >= pages_count - 1:
             break
 
         page += 1
@@ -98,7 +99,7 @@ async def perform_search(
     combined_results = {
         "items": all_items,
         "found": total_found,
-        "pages": pages_count if page == 0 else (page + 1),
+        "pages": pages_count if pages_count else (page + 1),
     }
 
     logger.info(
