@@ -59,15 +59,15 @@ profile:
   preferences_lang_prompt: 'Выбери язык бота:'
   preferences_lang_saved: 'Язык обновлён: {language}.'
   preferences_lang_invalid: 'Этот язык не поддерживается.'
-  preferences_schedule_prompt: "Во сколько присылать новые вакансии? Формат HH:MM (24ч). 'clear' — убрать."
-  preferences_schedule_invalid: "Время должно быть в формате HH:MM (00:00–23:59). Попробуй ещё раз или отправь 'clear'."
+  preferences_schedule_prompt: "Во сколько присылать новые вакансии? Формат HH:MM (24ч), только :00/:15/:30/:45. 'clear' — убрать."
+  preferences_schedule_invalid: "Время должно быть в формате HH:MM и кратно 15 минутам (например, 09:00, 09:15, 09:30, 09:45). Попробуй ещё раз или отправь 'clear'."
   preferences_schedule_saved: 'Время доставки сохранено: {time}.'
   preferences_schedule_cleared: 'Время доставки удалено.'
   preferences_timezone_prompt: "Отправь свой часовой пояс (IANA, например Europe/Moscow). 'clear' — убрать и использовать дефолт."
   preferences_timezone_invalid: "Нужен корректный IANA таймзон (например, Europe/London)."
   preferences_timezone_saved: 'Часовой пояс сохранён: {timezone}.'
   preferences_timezone_cleared: 'Часовой пояс удалён. Будет использоваться дефолт.'
-  preferences_schedule_info: "<b>Ежедневная рассылка</b>\nВремя: {time}\nЧасовой пояс: {timezone}\nПоследний поиск: {query}\nПоследняя отправка: {last_sent}"
+  preferences_schedule_info: "<b>Ежедневная рассылка</b>\nВремя: {time}\nШаг отправки: 15 минут\nЧасовой пояс: {timezone}\nПоследний поиск: {query}\nПоследняя отправка: {last_sent}"
   preferences_schedule_info_empty: "Время рассылки не задано. Укажи его в Предпочтениях, чтобы получать вакансии."
   preferences_schedule_test_success: 'Тестовая рассылка отправлена.'
   preferences_schedule_test_fail: 'Не удалось отправить тест. Убедись, что задан поиск и время доставки.'

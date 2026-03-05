@@ -128,6 +128,12 @@ async def main():
     if settings.ENV.lower() == "prod":
         await run_webhook(bot, dp)
     else:
+        # Local/dev runs use polling; remove an old webhook if it is still set.
+        try:
+            await bot.delete_webhook(drop_pending_updates=True)
+            logger.info("Webhook removed for polling mode")
+        except Exception as e:
+            logger.warning(f"Failed to remove webhook before polling: {e}")
         await dp.start_polling(bot)
 
 

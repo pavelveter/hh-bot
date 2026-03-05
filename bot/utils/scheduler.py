@@ -126,7 +126,7 @@ async def setup_scheduler(bot: Bot | None = None):
 
                 bot_scheduler.add_job(
                     run_daily_vacancies,
-                    CronTrigger(minute="*"),
+                    CronTrigger(minute="*/15"),
                     job_id="daily_vacancies",
                     job_name="Daily Vacancy Delivery",
                     job_args=[bot],

@@ -145,7 +145,7 @@ async def save_schedule_time(message: types.Message, state: FSMContext):
         await state.clear()
         return
 
-    parsed = parse_time(raw)
+    parsed = parse_time(raw, minute_step=15)
     if not parsed:
         await message.answer(t("profile.preferences_schedule_invalid", lang))
         return

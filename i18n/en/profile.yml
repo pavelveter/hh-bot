@@ -59,15 +59,15 @@ profile:
   preferences_lang_prompt: 'Choose bot language:'
   preferences_lang_saved: 'Language updated to {language}.'
   preferences_lang_invalid: 'Unsupported language.'
-  preferences_schedule_prompt: "Send time for new vacancies (HH:MM, 24h). Send 'clear' to remove."
-  preferences_schedule_invalid: "Time must be in HH:MM (00:00–23:59). Try again or send 'clear'."
+  preferences_schedule_prompt: "Send time for new vacancies (HH:MM, 24h), only :00/:15/:30/:45. Send 'clear' to remove."
+  preferences_schedule_invalid: "Time must be in HH:MM and aligned to 15 minutes (e.g., 09:00, 09:15, 09:30, 09:45). Try again or send 'clear'."
   preferences_schedule_saved: 'Delivery time saved: {time}.'
   preferences_schedule_cleared: 'Delivery time removed.'
   preferences_timezone_prompt: "Send your timezone (IANA, e.g., Europe/Moscow). 'clear' to remove and use default."
   preferences_timezone_invalid: "Timezone must be a valid IANA zone (e.g., Europe/London)."
   preferences_timezone_saved: 'Timezone saved: {timezone}.'
   preferences_timezone_cleared: 'Timezone removed. Default will be used.'
-  preferences_schedule_info: "<b>Daily delivery</b>\nTime: {time}\nTimezone: {timezone}\nLast search: {query}\nLast sent: {last_sent}"
+  preferences_schedule_info: "<b>Daily delivery</b>\nTime: {time}\nDelivery interval: 15 minutes\nTimezone: {timezone}\nLast search: {query}\nLast sent: {last_sent}"
   preferences_schedule_info_empty: "Delivery time is not set. Set it in Preferences to get daily vacancies."
   preferences_schedule_test_success: 'Test delivery sent.'
   preferences_schedule_test_fail: 'Could not send test delivery. Make sure you have a search query and delivery time.'
