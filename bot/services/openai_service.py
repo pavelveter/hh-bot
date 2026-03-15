@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import AsyncIterator
 
 import openai
 
@@ -129,6 +130,95 @@ class OpenAIService:
                 f"[{request_id}] Unexpected error during chat completion: {e}"
             )
             return None
+
+    async def chat_completion_stream(
+        self,
+        messages: list[dict[str, str]],
+        model: str = "gpt-3.5-turbo",
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        llm_overrides: dict | None = None,
+    ) -> AsyncIterator[str]:
+        """Stream chat completion deltas from the LLM."""
+        override_model = llm_overrides.get("model") if llm_overrides else None
+        override_api_key = llm_overrides.get("api_key") if llm_overrides else None
+        override_base_url = llm_overrides.get("base_url") if llm_overrides else None
+
+        actual_model = override_model or (
+            model if model != "gpt-3.5-turbo" else self.settings.LLM_MODEL
+        )
+
+        client = self.client
+        if override_api_key or override_base_url:
+            client_params = {"api_key": override_api_key or self.settings.LLM_API_KEY}
+            if override_base_url:
+                client_params["base_url"] = override_base_url
+            client = openai.AsyncOpenAI(**client_params)
+
+        if not client:
+            openai_logger.error(
+                "OpenAI client not available (init missing and no overrides provided)"
+            )
+            return
+
+        request_id = f"stream_{hash(str(messages)) % 10000}"
+        openai_logger.debug(
+            f"[{request_id}] Starting chat completion stream with model {actual_model}"
+            + (" using overrides" if llm_overrides else "")
+        )
+
+        start_time = asyncio.get_event_loop().time()
+        accumulated_length = 0
+
+        try:
+            params = {
+                "model": actual_model,
+                "messages": messages,
+                "temperature": temperature,
+                "stream": True,
+            }
+
+            if max_tokens:
+                params["max_tokens"] = max_tokens
+
+            stream = await client.chat.completions.create(**params)
+
+            async for chunk in stream:
+                if not chunk.choices:
+                    continue
+
+                delta = chunk.choices[0].delta.content
+                if not delta:
+                    continue
+
+                if isinstance(delta, str):
+                    accumulated_length += len(delta)
+                    yield delta
+                    continue
+
+                text_parts = []
+                for item in delta:
+                    text_value = getattr(item, "text", None)
+                    if text_value:
+                        text_parts.append(text_value)
+
+                if text_parts:
+                    piece = "".join(text_parts)
+                    accumulated_length += len(piece)
+                    yield piece
+
+            execution_time = asyncio.get_event_loop().time() - start_time
+            openai_logger.success(
+                f"[{request_id}] Chat completion stream completed in {execution_time:.3f}s using model {actual_model}, response length: {accumulated_length} chars"
+            )
+        except openai.APIError as e:
+            openai_logger.error(f"[{request_id}] OpenAI API stream error: {e}")
+            raise
+        except Exception as e:
+            openai_logger.error(
+                f"[{request_id}] Unexpected error during chat completion stream: {e}"
+            )
+            raise
 
     async def analyze_vacancy(self, vacancy_data: dict) -> str | None:
         """Analyze a vacancy using OpenAI with comprehensive logging"""

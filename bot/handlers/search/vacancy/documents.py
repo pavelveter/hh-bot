@@ -1,7 +1,9 @@
 import asyncio
 import html
+from collections.abc import Awaitable, Callable
 
 from aiogram import Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery
 
 from bot.db import CVType
@@ -18,6 +20,8 @@ router = Router()
 logger = get_logger(__name__)
 
 GENERATION_TIMEOUT = 40  # seconds
+DRAFT_UPDATE_INTERVAL = 0.8  # seconds
+MAX_DRAFT_TEXT_LENGTH = 4096
 
 
 async def _parse_callback(
@@ -107,23 +111,42 @@ async def _get_existing_doc(
         return None
 
 
-async def _generate_document(messages, doc_meta, llm_settings, lang: str) -> str | None:
-    try:
-        return await asyncio.wait_for(
-            openai_service.chat_completion(
-                messages,
-                model=openai_service.settings.LLM_MODEL,
-                max_tokens=doc_meta["max_tokens"],
-                llm_overrides=llm_settings or None,
-            ),
-            timeout=GENERATION_TIMEOUT,
-        )
-    except TimeoutError:
-        logger.error("LLM generation timed out")
-        return None
-    except Exception as e:
-        logger.error(f"LLM generation failed: {e}")
-        return None
+def _build_draft_id(vacancy_db_id: int, doc_type: CVType) -> int:
+    return vacancy_db_id * 10 + int(doc_type) + 1
+
+
+def _build_draft_text(status_text: str, content: str) -> str:
+    prefix = f"{status_text}\n\n"
+    if len(prefix) >= MAX_DRAFT_TEXT_LENGTH:
+        return prefix[:MAX_DRAFT_TEXT_LENGTH]
+
+    available = MAX_DRAFT_TEXT_LENGTH - len(prefix)
+    return prefix + content[:available]
+
+
+async def _stream_document_generation(
+    messages,
+    doc_meta,
+    llm_settings,
+    on_partial: Callable[[str], Awaitable[None]] | None = None,
+) -> str | None:
+    chunks: list[str] = []
+    partial_text = ""
+
+    async for chunk in openai_service.chat_completion_stream(
+        messages,
+        model=openai_service.settings.LLM_MODEL,
+        max_tokens=doc_meta["max_tokens"],
+        llm_overrides=llm_settings or None,
+    ):
+        if not chunk:
+            continue
+        chunks.append(chunk)
+        partial_text += chunk
+        if on_partial:
+            await on_partial(partial_text)
+
+    return "".join(chunks)
 
 
 @router.callback_query(
@@ -201,10 +224,61 @@ async def vacancy_cv_handler(callback: CallbackQuery):
         messages = doc_meta["prompt_builder"](
             vacancy, user_resume, user_skills, user_prompt, candidate_name, lang
         )
-        generating_msg = await callback.message.answer(
-            t(doc_meta["generating_key"], lang)
+        generating_text = t(doc_meta["generating_key"], lang)
+        generating_msg = await callback.message.answer(generating_text)
+
+        draft_enabled = bool(
+            callback.message
+            and callback.message.chat
+            and callback.message.chat.type == "private"
         )
-        doc_text = await _generate_document(messages, doc_meta, llm_settings, lang)
+        draft_id = _build_draft_id(vacancy_db_id, doc_type)
+        last_draft_sent_at = 0.0
+        draft_failed = False
+
+        async def push_draft(partial_text: str) -> None:
+            nonlocal last_draft_sent_at, draft_failed
+            if not draft_enabled or draft_failed or not callback.message:
+                return
+
+            now = asyncio.get_event_loop().time()
+            if partial_text and (now - last_draft_sent_at) < DRAFT_UPDATE_INTERVAL:
+                return
+
+            try:
+                await callback.bot.send_message_draft(
+                    chat_id=callback.message.chat.id,
+                    draft_id=draft_id,
+                    text=_build_draft_text(generating_text, partial_text),
+                )
+                last_draft_sent_at = now
+            except TelegramBadRequest as e:
+                draft_failed = True
+                logger.warning(
+                    f"sendMessageDraft unavailable for chat {callback.message.chat.id}: {e}"
+                )
+            except Exception as e:
+                draft_failed = True
+                logger.warning(
+                    f"Failed to push message draft for user {user_id}, vacancy {vacancy_db_id}: {e}"
+                )
+
+        async def generate_with_draft() -> str | None:
+            return await _stream_document_generation(
+                messages,
+                doc_meta,
+                llm_settings,
+                on_partial=push_draft if draft_enabled else None,
+            )
+
+        try:
+            doc_text = await asyncio.wait_for(
+                generate_with_draft(), timeout=GENERATION_TIMEOUT
+            )
+        except TimeoutError:
+            logger.error("LLM generation timed out")
+            await callback.message.answer(t(doc_meta["failed_key"], lang))
+            return
 
         if not doc_text or not str(doc_text).strip():
             logger.error(
