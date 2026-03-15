@@ -2,6 +2,7 @@ import asyncio
 import html
 from collections.abc import Awaitable, Callable
 
+import openai
 from aiogram import Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery
@@ -278,6 +279,14 @@ async def vacancy_cv_handler(callback: CallbackQuery):
         except TimeoutError:
             logger.error("LLM generation timed out")
             await callback.message.answer(t(doc_meta["failed_key"], lang))
+            return
+        except openai.RateLimitError as e:
+            logger.warning(
+                f"LLM rate limit for user {user_id}, vacancy {vacancy_db_id}: {e}"
+            )
+            await callback.message.answer(
+                t("search.vacancy_detail.llm_rate_limited", lang)
+            )
             return
 
         if not doc_text or not str(doc_text).strip():

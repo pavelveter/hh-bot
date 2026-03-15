@@ -14,6 +14,9 @@ openai_logger = get_logger(__name__)
 class OpenAIService:
     """Service for interacting with OpenAI API with comprehensive logging"""
 
+    _rate_limit_retries = 2
+    _rate_limit_backoff_seconds = 2
+
     def __init__(self):
         self.client: openai.AsyncOpenAI | None = None
         self.settings = settings
@@ -170,55 +173,71 @@ class OpenAIService:
         start_time = asyncio.get_event_loop().time()
         accumulated_length = 0
 
-        try:
-            params = {
-                "model": actual_model,
-                "messages": messages,
-                "temperature": temperature,
-                "stream": True,
-            }
+        params = {
+            "model": actual_model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+        }
 
-            if max_tokens:
-                params["max_tokens"] = max_tokens
+        if max_tokens:
+            params["max_tokens"] = max_tokens
 
-            stream = await client.chat.completions.create(**params)
+        for attempt in range(self._rate_limit_retries + 1):
+            yielded_any_chunks = False
+            try:
+                stream = await client.chat.completions.create(**params)
 
-            async for chunk in stream:
-                if not chunk.choices:
-                    continue
+                async for chunk in stream:
+                    if not chunk.choices:
+                        continue
 
-                delta = chunk.choices[0].delta.content
-                if not delta:
-                    continue
+                    delta = chunk.choices[0].delta.content
+                    if not delta:
+                        continue
 
-                if isinstance(delta, str):
-                    accumulated_length += len(delta)
-                    yield delta
-                    continue
+                    if isinstance(delta, str):
+                        accumulated_length += len(delta)
+                        yielded_any_chunks = True
+                        yield delta
+                        continue
 
-                text_parts = []
-                for item in delta:
-                    text_value = getattr(item, "text", None)
-                    if text_value:
-                        text_parts.append(text_value)
+                    text_parts = []
+                    for item in delta:
+                        text_value = getattr(item, "text", None)
+                        if text_value:
+                            text_parts.append(text_value)
 
-                if text_parts:
-                    piece = "".join(text_parts)
-                    accumulated_length += len(piece)
-                    yield piece
+                    if text_parts:
+                        piece = "".join(text_parts)
+                        accumulated_length += len(piece)
+                        yielded_any_chunks = True
+                        yield piece
 
-            execution_time = asyncio.get_event_loop().time() - start_time
-            openai_logger.success(
-                f"[{request_id}] Chat completion stream completed in {execution_time:.3f}s using model {actual_model}, response length: {accumulated_length} chars"
-            )
-        except openai.APIError as e:
-            openai_logger.error(f"[{request_id}] OpenAI API stream error: {e}")
-            raise
-        except Exception as e:
-            openai_logger.error(
-                f"[{request_id}] Unexpected error during chat completion stream: {e}"
-            )
-            raise
+                execution_time = asyncio.get_event_loop().time() - start_time
+                openai_logger.success(
+                    f"[{request_id}] Chat completion stream completed in {execution_time:.3f}s using model {actual_model}, response length: {accumulated_length} chars"
+                )
+                return
+            except openai.RateLimitError as e:
+                is_last_attempt = attempt >= self._rate_limit_retries
+                if yielded_any_chunks or is_last_attempt:
+                    openai_logger.error(f"[{request_id}] OpenAI API stream error: {e}")
+                    raise
+
+                retry_delay = self._rate_limit_backoff_seconds * (attempt + 1)
+                openai_logger.warning(
+                    f"[{request_id}] Rate limited before first stream chunk, retrying in {retry_delay}s (attempt {attempt + 1}/{self._rate_limit_retries})"
+                )
+                await asyncio.sleep(retry_delay)
+            except openai.APIError as e:
+                openai_logger.error(f"[{request_id}] OpenAI API stream error: {e}")
+                raise
+            except Exception as e:
+                openai_logger.error(
+                    f"[{request_id}] Unexpected error during chat completion stream: {e}"
+                )
+                raise
 
     async def analyze_vacancy(self, vacancy_data: dict) -> str | None:
         """Analyze a vacancy using OpenAI with comprehensive logging"""

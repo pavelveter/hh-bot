@@ -64,5 +64,6 @@ search:
     cv_no_cache: 'No cached CV. Generate first.'
     cover_letter_no_cache: 'No cached cover letter. Generate first.'
     llm_unavailable: 'LLM service unavailable'
+    llm_rate_limited: 'The selected LLM is temporarily rate-limited. Please retry in a minute or switch to another model/API key in profile settings.'
     cv_failed: 'Error generating CV'
     cover_letter_failed: 'Error generating cover letter'

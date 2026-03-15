@@ -64,5 +64,6 @@ search:
     cv_no_cache: 'Сохранённого CV нет. Сначала сгенерируй.'
     cover_letter_no_cache: 'Сохранённого cover letter нет. Сначала сгенерируй.'
     llm_unavailable: 'LLM недоступен'
+    llm_rate_limited: 'Выбранная LLM временно упёрлась в rate limit. Повтори через минуту или переключи модель/API key в настройках профиля.'
     cv_failed: 'Ошибка генерации CV'
     cover_letter_failed: 'Ошибка генерации cover letter'
