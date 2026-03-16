@@ -1,6 +1,16 @@
+# ruff: noqa: E402
+
 import asyncio
 import os
+import warnings
 from urllib.parse import urlparse
+
+warnings.filterwarnings(
+    "ignore",
+    message=r'Field "model_custom_emoji_id" has conflict with protected namespace "model_"',
+    category=UserWarning,
+    module=r"pydantic\._internal\._fields",
+)
 
 from aiogram import Bot, Dispatcher
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application

@@ -26,6 +26,21 @@ KNOWN_COMMANDS = {
 }
 
 
+def _is_service_message(message: Message) -> bool:
+    return any(
+        getattr(message, attr, None) is not None
+        for attr in (
+            "forum_topic_created",
+            "forum_topic_edited",
+            "forum_topic_closed",
+            "forum_topic_reopened",
+            "general_forum_topic_hidden",
+            "general_forum_topic_unhidden",
+            "write_access_allowed",
+        )
+    )
+
+
 def register_echo_handlers(router_instance: Router):
     """Register echo handlers"""
     try:
@@ -38,9 +53,13 @@ def register_echo_handlers(router_instance: Router):
 @router.message()
 async def echo_handler(message: Message):
     """Echo handler for any other messages with comprehensive logging and database integration"""
+    if _is_service_message(message):
+        logger.debug("Ignoring service message in echo handler")
+        return
+
     user_id = str(message.from_user.id)
     username = message.from_user.username or "N/A"
-    text = message.text or "[non-text message]"
+    text = message.text or ""
     lang = detect_lang(message.from_user.language_code if message.from_user else None)
     user_obj = None
     user_db_id = None
@@ -85,9 +104,7 @@ async def echo_handler(message: Message):
             logger.debug(f"Treating message as search query for user {user_id}")
             await run_search_and_reply(message, user_obj, user_db_id, text, lang)
         else:
-            help_message = t("search.echo_help", lang)
-            await message.answer(help_message)
-            logger.debug(f"Echo message sent to user {user_id}")
+            logger.debug(f"Ignoring non-text or empty message from user {user_id}")
 
     except Exception as e:
         logger.error(f"Failed to handle message from user {user_id}: {e}")
