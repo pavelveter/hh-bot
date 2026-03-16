@@ -1,5 +1,10 @@
 """Search utilities package."""
 
+from bot.utils.search.query_state import (
+    get_query_thread_map,
+    get_sent_vacancy_ids_by_query,
+    normalize_search_query_key,
+)
 from bot.utils.search.search_cache import (
     CACHE_TTL,
     cache_vacancies,
@@ -36,4 +41,7 @@ __all__ = [
     "format_vacancy",
     "format_vacancy_details",
     "perform_search",
+    "get_query_thread_map",
+    "get_sent_vacancy_ids_by_query",
+    "normalize_search_query_key",
 ]

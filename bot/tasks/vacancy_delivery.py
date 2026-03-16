@@ -13,6 +13,9 @@ from bot.utils.logging import get_logger
 from bot.utils.search import (
     cache_vacancies,
     format_search_page,
+    get_query_thread_map,
+    get_sent_vacancy_ids_by_query,
+    normalize_search_query_key,
     perform_search,
     store_search_results,
 )
@@ -24,6 +27,7 @@ DEFAULT_TZ = ZoneInfo("Europe/Moscow")
 MAX_SENT_IDS = 200
 MAX_VACANCIES_PER_USER = 20
 DAILY_PER_PAGE = 5
+MAX_TRACKED_QUERIES = 50
 
 
 def _already_sent_today(prefs: dict, now_local: datetime, schedule_time: str) -> bool:
@@ -95,85 +99,113 @@ async def send_vacancies_to_user(
     if not force and _already_sent_today(prefs, now_local, schedule_time):
         return False
 
-    sent_ids = prefs.get("sent_vacancy_ids") or []
-    sent_ids_set = set(sent_ids)
     lang = detect_lang(user.language_code)
-
-    last_query = await search_service.get_latest_search_query_any(user.id)
-
-    if not last_query or not last_query.query_text:
-        logger.info(f"Skip user {user.tg_user_id}: no last search query")
+    query_records = await search_service.get_recent_distinct_search_queries(
+        user.id, limit=MAX_TRACKED_QUERIES
+    )
+    if not query_records:
+        logger.info(f"Skip user {user.tg_user_id}: no saved search queries")
         return False
 
+    query_threads = get_query_thread_map(prefs)
+    sent_ids_by_query = get_sent_vacancy_ids_by_query(prefs)
     filters = prefs.get("search_filters", {})
     area_id = user.hh_area_id
+    any_sent = False
+    updated_sent_ids_by_query = dict(sent_ids_by_query)
 
-    try:
-        results, response_time = await perform_search(
-            last_query.query_text,
-            per_page=MAX_VACANCIES_PER_USER,
-            max_pages=1,
-            search_in_name_only=True,
-            area_id=area_id,
-            filters=filters,
+    for query_record in query_records:
+        query_text = (query_record.query_text or "").strip()
+        if not query_text:
+            continue
+
+        query_key = normalize_search_query_key(query_text)
+        sent_ids = updated_sent_ids_by_query.get(query_key, [])
+        sent_ids_set = set(sent_ids)
+
+        try:
+            results, response_time = await perform_search(
+                query_text,
+                per_page=MAX_VACANCIES_PER_USER,
+                max_pages=1,
+                search_in_name_only=True,
+                area_id=area_id,
+                filters=filters,
+            )
+        except Exception as e:
+            logger.error(
+                f"Search failed for user {user.tg_user_id}, query '{query_text}': {e}"
+            )
+            continue
+
+        if not results or not results.get("items"):
+            logger.info(
+                f"No vacancies found for user {user.tg_user_id}, query '{query_text}' at {current_time}"
+            )
+            continue
+
+        vacancies_all = results.get("items", [])
+        vacancies_filtered = [
+            vac for vac in vacancies_all if force or vac.get("id") not in sent_ids_set
+        ]
+        if not vacancies_filtered:
+            logger.info(
+                f"All vacancies already sent to user {user.tg_user_id} for query '{query_text}', skipping"
+            )
+            continue
+
+        vacancies = vacancies_filtered[:MAX_VACANCIES_PER_USER]
+        total_found = len(vacancies)
+        per_page = DAILY_PER_PAGE
+
+        await store_search_results(
+            user.id, query_text, vacancies, response_time, per_page=per_page
         )
-    except Exception as e:
-        logger.error(f"Search failed for user {user.tg_user_id}: {e}")
-        return False
+        cache_vacancies(user.id, query_text, vacancies, total_found)
 
-    if not results or not results.get("items"):
-        logger.info(f"No vacancies found for user {user.tg_user_id} at {current_time}")
-        return False
-
-    vacancies_all = results.get("items", [])
-    vacancies_filtered = [
-        vac for vac in vacancies_all if force or vac.get("id") not in sent_ids_set
-    ]
-    if not vacancies_filtered:
-        logger.info(f"All vacancies already sent to user {user.tg_user_id}, skipping")
-        return False
-
-    vacancies = vacancies_filtered[:MAX_VACANCIES_PER_USER]
-    total_found = len(vacancies)
-    per_page = DAILY_PER_PAGE
-
-    # Persist and cache for detail/pagination handlers
-    await store_search_results(
-        user.id, last_query.query_text, vacancies, response_time, per_page=per_page
-    )
-    cache_vacancies(user.id, last_query.query_text, vacancies, total_found)
-
-    page = 0
-    total_pages = (len(vacancies) + per_page - 1) // per_page
-    text = format_search_page(
-        last_query.query_text, vacancies, page, per_page, total_found, lang
-    )
-    reply_markup = build_search_keyboard(
-        last_query.query_text, page, total_pages, per_page, len(vacancies)
-    )
-
-    try:
-        await bot.send_message(
-            chat_id=user.tg_user_id,
-            text=text,
-            parse_mode="HTML",
-            disable_web_page_preview=True,
-            reply_markup=reply_markup,
+        page = 0
+        total_pages = (len(vacancies) + per_page - 1) // per_page
+        text = format_search_page(
+            query_text, vacancies, page, per_page, total_found, lang
         )
-    except Exception as e:
-        logger.error(f"Failed to send vacancies to user {user.tg_user_id}: {e}")
+        reply_markup = build_search_keyboard(
+            query_text, page, total_pages, per_page, len(vacancies)
+        )
+
+        send_kwargs = {
+            "chat_id": user.tg_user_id,
+            "text": text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+            "reply_markup": reply_markup,
+        }
+        thread_id = query_threads.get(query_key)
+        if thread_id:
+            send_kwargs["message_thread_id"] = thread_id
+
+        try:
+            await bot.send_message(**send_kwargs)
+        except Exception as e:
+            logger.error(
+                f"Failed to send vacancies to user {user.tg_user_id} for query '{query_text}': {e}"
+            )
+            continue
+
+        any_sent = True
+        if not mark_sent:
+            continue
+
+        new_ids = [str(vac.get("id")) for vac in vacancies if vac.get("id")]
+        updated_sent_ids_by_query[query_key] = (sent_ids + new_ids)[-MAX_SENT_IDS:]
+
+    if not any_sent:
         return False
 
-    if not mark_sent:
-        return True
-
-    new_ids = [vac.get("id") for vac in vacancies if vac.get("id")]
-    combined_ids = (sent_ids + new_ids)[-MAX_SENT_IDS:]
-
-    await user_service.update_preferences(
-        user.tg_user_id,
-        vacancy_last_sent_at=now_utc.isoformat(),
-        sent_vacancy_ids=combined_ids,
-    )
+    if mark_sent:
+        await user_service.update_preferences(
+            user.tg_user_id,
+            vacancy_last_sent_at=now_utc.isoformat(),
+            sent_vacancy_ids_by_query=updated_sent_ids_by_query,
+        )
 
     return True

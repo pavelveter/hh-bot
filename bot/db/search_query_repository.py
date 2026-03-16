@@ -65,6 +65,26 @@ class SearchQueryRepository:
             self.logger.error(f"Error getting search queries for user {user_id}: {e}")
             raise
 
+    async def get_recent_distinct_search_queries(
+        self, user_id: int, limit: int = 50
+    ) -> list[SearchQuery]:
+        """Get recent search queries deduplicated by query text, preserving recency."""
+        queries = await self.get_search_queries_by_user(user_id, limit=limit)
+        distinct_queries: list[SearchQuery] = []
+        seen_query_texts: set[str] = set()
+
+        for query in queries:
+            normalized = " ".join((query.query_text or "").split()).casefold()
+            if not normalized or normalized in seen_query_texts:
+                continue
+            seen_query_texts.add(normalized)
+            distinct_queries.append(query)
+
+        self.logger.debug(
+            f"Retrieved {len(distinct_queries)} distinct search queries for user {user_id}"
+        )
+        return distinct_queries
+
     async def get_latest_search_query(
         self, user_id: int, query_text: str
     ) -> SearchQuery | None:
