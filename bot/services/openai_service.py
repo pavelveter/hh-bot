@@ -22,6 +22,37 @@ class OpenAIService:
         self.settings = settings
         self._initialized = False
 
+    @staticmethod
+    def _should_retry_without_system_prompt(error: Exception) -> bool:
+        return "Developer instruction is not enabled" in str(error)
+
+    @staticmethod
+    def _merge_system_into_user_messages(
+        messages: list[dict[str, str]],
+    ) -> list[dict[str, str]]:
+        system_parts: list[str] = []
+        non_system_messages: list[dict[str, str]] = []
+
+        for message in messages:
+            role = message.get("role")
+            content = message.get("content", "")
+            if role == "system" and content:
+                system_parts.append(content)
+                continue
+            non_system_messages.append(dict(message))
+
+        if not system_parts or not non_system_messages:
+            return messages
+
+        merged_instructions = "\n\n".join(system_parts).strip()
+        first_message = non_system_messages[0]
+        first_content = first_message.get("content", "")
+        first_message["content"] = (
+            f"{merged_instructions}\n\n{first_content}".strip()
+        )
+        non_system_messages[0] = first_message
+        return non_system_messages
+
     async def init_service(self):
         """Initialize OpenAI client with logging"""
         try:
@@ -98,17 +129,32 @@ class OpenAIService:
 
         start_time = asyncio.get_event_loop().time()
 
+        params = {
+            "model": actual_model,
+            "messages": messages,
+            "temperature": temperature,
+        }
+
+        if max_tokens:
+            params["max_tokens"] = max_tokens
+
         try:
-            params = {
-                "model": actual_model,
-                "messages": messages,
-                "temperature": temperature,
-            }
-
-            if max_tokens:
-                params["max_tokens"] = max_tokens
-
             response = await client.chat.completions.create(**params)
+        except openai.BadRequestError as e:
+            if not self._should_retry_without_system_prompt(e):
+                raise
+
+            fallback_messages = self._merge_system_into_user_messages(messages)
+            if fallback_messages == messages:
+                raise
+
+            openai_logger.warning(
+                f"[{request_id}] Retrying without system role for model {actual_model}"
+            )
+            params["messages"] = fallback_messages
+            response = await client.chat.completions.create(**params)
+
+        try:
 
             execution_time = asyncio.get_event_loop().time() - start_time
             content = response.choices[0].message.content if response.choices else ""
@@ -185,6 +231,7 @@ class OpenAIService:
 
         for attempt in range(self._rate_limit_retries + 1):
             yielded_any_chunks = False
+            current_messages = params["messages"]
             try:
                 stream = await client.chat.completions.create(**params)
 
@@ -219,6 +266,22 @@ class OpenAIService:
                     f"[{request_id}] Chat completion stream completed in {execution_time:.3f}s using model {actual_model}, response length: {accumulated_length} chars"
                 )
                 return
+            except openai.BadRequestError as e:
+                if not self._should_retry_without_system_prompt(e):
+                    openai_logger.error(f"[{request_id}] OpenAI API stream error: {e}")
+                    raise
+
+                fallback_messages = self._merge_system_into_user_messages(
+                    list(current_messages)
+                )
+                if fallback_messages == current_messages:
+                    openai_logger.error(f"[{request_id}] OpenAI API stream error: {e}")
+                    raise
+
+                openai_logger.warning(
+                    f"[{request_id}] Retrying stream without system role for model {actual_model}"
+                )
+                params["messages"] = fallback_messages
             except openai.RateLimitError as e:
                 is_last_attempt = attempt >= self._rate_limit_retries
                 if yielded_any_chunks or is_last_attempt:
