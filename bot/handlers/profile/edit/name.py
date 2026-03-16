@@ -37,17 +37,19 @@ async def save_name(message: types.Message, state: FSMContext):
     )
 
     if is_clear_command(name_raw):
-        first, last = None, None
+        first, middle, last = None, None, None
     else:
         if not name_raw:
             await message.answer(t("profile.edit_name_empty", lang))
             return
-        first, last = split_name(name_raw)
+        first, middle, last = split_name(name_raw)
         if not first:
             await message.answer(t("profile.edit_name_first_empty", lang))
             return
 
-    await update_user_prefs(user_id, first_name=first, last_name=last)
+    await update_user_prefs(
+        user_id, first_name=first, last_name=last, middle_name=middle
+    )
 
     state_data = await state.get_data()
     prompt_chat_id = state_data.get("name_prompt_chat_id")

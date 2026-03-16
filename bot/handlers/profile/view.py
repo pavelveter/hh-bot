@@ -7,17 +7,21 @@ from bot.handlers.profile.keyboards import profile_keyboard
 from bot.services import search_service, user_service
 from bot.utils.i18n import detect_lang, t
 from bot.utils.logging import get_logger
+from bot.utils.profile_edit import build_full_name
 from bot.utils.profile_helpers import (
     build_skills_preview,
     format_search_filters,
     resume_preview,
+    short,
 )
 
 logger = get_logger(__name__)
 router = Router()
 
 
-async def send_profile_view(tg_id: str, message_obj: types.Message, edit: bool = False):
+async def prepare_profile_view(
+    tg_id: str, message_obj: types.Message
+) -> tuple[object | None, str, str | None, object | None]:
     user = await user_service.get_user_by_tg_id(tg_id)
 
     lang = detect_lang(
@@ -27,11 +31,11 @@ async def send_profile_view(tg_id: str, message_obj: types.Message, edit: bool =
     )
 
     if not user:
-        await message_obj.answer(t("profile.no_profile", lang))
-        return
+        return None, lang, None, None
 
     prefs = user.preferences or {}
     search_filters = prefs.get("search_filters", {})
+    middle_name = prefs.get("middle_name")
 
     city = html.escape(user.city) if user.city else "not set"
     desired_position = (
@@ -46,8 +50,11 @@ async def send_profile_view(tg_id: str, message_obj: types.Message, edit: bool =
         if skills_count
         else t("profile.not_set", lang)
     )
+    contacts = short(prefs.get("contacts"), lang, limit=250)
     username = f"@{html.escape(user.username)}" if user.username else "not set"
-    name = f"{html.escape(user.first_name or '')} {html.escape(user.last_name or '')}".strip()
+    name = html.escape(
+        build_full_name(user.first_name, middle_name, user.last_name)
+    ).strip()
     search_filters_text = format_search_filters(search_filters, lang)
     last_search = t("profile.not_set", lang)
     try:
@@ -66,21 +73,40 @@ async def send_profile_view(tg_id: str, message_obj: types.Message, edit: bool =
         city=city,
         desired_position=desired_position,
         skills=skills,
+        contacts=contacts,
         resume=resume_preview(prefs.get("resume"), lang),
         last_search=last_search,
         search_filters=search_filters_text,
     )
 
     markup = profile_keyboard(lang, skills_count, skills_preview)
+    return user, lang, text, markup
+
+
+async def send_profile_view(tg_id: str, message_obj: types.Message, edit: bool = False):
+    user, lang, text, markup = await prepare_profile_view(tg_id, message_obj)
+    if not user:
+        await message_obj.answer(t("profile.no_profile", lang))
+        return
 
     if edit:
         try:
-            await message_obj.edit_text(text, parse_mode="HTML", reply_markup=markup)
+            await message_obj.edit_text(
+                text,
+                parse_mode="HTML",
+                reply_markup=markup,
+                disable_web_page_preview=True,
+            )
             return
         except Exception as e:
             logger.debug(f"Failed to edit profile message for user {tg_id}: {e}")
 
-    await message_obj.answer(text, parse_mode="HTML", reply_markup=markup)
+    await message_obj.answer(
+        text,
+        parse_mode="HTML",
+        reply_markup=markup,
+        disable_web_page_preview=True,
+    )
 
 
 @router.message(Command("profile"))

@@ -30,19 +30,25 @@ def profile_keyboard(
             ),
             row(
                 InlineKeyboardButton(
-                    text=t("profile.buttons.edit_resume", lang),
-                    callback_data="resume_menu",
+                    text=t("profile.buttons.edit_contacts", lang),
+                    callback_data="edit_contacts",
                 ),
                 InlineKeyboardButton(
-                    text=t("profile.buttons.llm_settings", lang),
-                    callback_data="llm_menu",
+                    text=t("profile.buttons.edit_resume", lang),
+                    callback_data="resume_menu",
                 ),
             ),
             row(
                 InlineKeyboardButton(
+                    text=t("profile.buttons.llm_settings", lang),
+                    callback_data="llm_menu",
+                ),
+                InlineKeyboardButton(
                     text=t("profile.buttons.search_settings", lang),
                     callback_data="search_settings",
                 ),
+            ),
+            row(
                 InlineKeyboardButton(
                     text=t("profile.buttons.preferences", lang),
                     callback_data="prefs_menu",

@@ -1,6 +1,6 @@
 Write a concise, vacancy-matched CV for this candidate.
 - Language: use the same language as the vacancy (detect from the vacancy text).
-- Name: include the candidate’s full name from user data at the top; do NOT add contacts.
+- Header: include the candidate’s full name from user data at the top. If candidate contacts are provided, place them immediately below the name as plain text.
 - Relevance: highlight skills and achievements that directly match the vacancy first; keep unrelated items brief or omit them.
 - Structure: Title/Role, Summary (2–3 sentences), Experience/Projects (short bullets with outcomes), Skills (bullets, most relevant first), Education/Certifications (brief).
 - Output: plain text only (no HTML/Markdown), keep it readable for messaging.

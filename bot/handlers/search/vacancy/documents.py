@@ -14,6 +14,7 @@ from bot.services import cv_service, user_service
 from bot.services.openai_service import openai_service
 from bot.utils.i18n import detect_lang, t
 from bot.utils.logging import get_logger
+from bot.utils.profile_edit import build_full_name
 from bot.utils.search import get_vacancies_from_db
 from bot.utils.vacancy_docs import sanitize_cover_letter_text
 
@@ -199,6 +200,8 @@ async def vacancy_cv_handler(callback: CallbackQuery):
         prefs = user_obj.preferences if user_obj and user_obj.preferences else {}
         user_resume = prefs.get("resume")
         user_skills = prefs.get("skills")
+        user_contacts = prefs.get("contacts")
+        user_middle_name = prefs.get("middle_name")
         llm_settings = prefs.get("llm_settings") or {}
         user_prompt = None
 
@@ -210,20 +213,22 @@ async def vacancy_cv_handler(callback: CallbackQuery):
             )
             return
 
-        candidate_name_parts = [
-            part
-            for part in [
-                (user_obj.first_name if user_obj else None),
-                (user_obj.last_name if user_obj else None),
-            ]
-            if part
-        ]
-        candidate_name = " ".join(candidate_name_parts) or (
+        candidate_name = build_full_name(
+            user_obj.first_name if user_obj else None,
+            user_middle_name,
+            user_obj.last_name if user_obj else None,
+        ) or (
             user_obj.username if user_obj and user_obj.username else None
         )
 
         messages = doc_meta["prompt_builder"](
-            vacancy, user_resume, user_skills, user_prompt, candidate_name, lang
+            vacancy,
+            user_resume,
+            user_skills,
+            user_contacts,
+            user_prompt,
+            candidate_name,
+            lang,
         )
         generating_text = t(doc_meta["generating_key"], lang)
         generating_msg = await callback.message.answer(generating_text)

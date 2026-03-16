@@ -7,6 +7,7 @@ def build_cv_prompt(
     vacancy: dict,
     user_resume: str | None,
     user_skills: list[str] | None,
+    user_contacts: str | None,
     user_prompt: str | None = None,
     candidate_name: str | None = None,
     lang: str = "en",
@@ -22,6 +23,8 @@ def build_cv_prompt(
     user_context_parts = []
     if candidate_name:
         user_context_parts.append(f"Candidate name: {candidate_name}")
+    if user_contacts:
+        user_context_parts.append(f"Candidate contacts:\n{user_contacts}")
     user_context_parts.append(
         f"User skills: {skills_text}" if skills_text else "User skills not provided"
     )
@@ -39,6 +42,7 @@ def build_cover_letter_prompt(
     vacancy: dict,
     user_resume: str | None,
     user_skills: list[str] | None,
+    user_contacts: str | None,
     user_prompt: str | None = None,
     candidate_name: str | None = None,
     lang: str = "en",

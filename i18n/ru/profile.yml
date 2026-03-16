@@ -7,6 +7,7 @@ profile:
     <b>Город:</b> {city}
     <b>Желаемая должность:</b> {desired_position}
     <b>Навыки:</b> {skills}
+    <b>Контакты:</b> {contacts}
 
     <b>Резюме:</b>
     {resume}
@@ -32,10 +33,14 @@ profile:
   edit_position_empty: 'Должность не может быть пустой. Отправь ещё раз.'
   edit_position_cleared: 'Желаемая должность удалена.'
   edit_position_updated: 'Должность обновлена.'
-  edit_name_prompt: 'Отправь имя в формате: <code>Имя Фамилия</code> (фамилия опционально).'
+  edit_name_prompt: 'Отправь имя в формате: <code>Имя Отчество Фамилия</code>. Отчество и фамилия опциональны.'
   edit_name_empty: 'Имя не может быть пустым. Отправь ещё раз.'
   edit_name_first_empty: 'Имя не может быть пустым. Отправь ещё раз.'
   edit_name_updated: 'Имя обновлено.'
+  edit_contacts_prompt: "Отправь контакты в свободной форме (tg, GitHub, сайт, телефон, email и т.д.). 'clear' — очистить."
+  edit_contacts_empty: 'Контакты не могут быть пустыми. Отправь ещё раз.'
+  edit_contacts_cleared: 'Контакты удалены.'
+  edit_contacts_updated: 'Контакты обновлены.'
   edit_skills_prompt: "Отправь навыки (через запятую, строки или буллеты). 'clear' — очистить."
   edit_skills_empty: 'Навыки не могут быть пустыми. Отправь ещё раз.'
   edit_skills_none: 'Навыки не распознаны. Отправь списком или через запятую.'
@@ -102,6 +107,7 @@ profile:
     edit_city: '🏙️ Город'
     edit_position: '🎯 Должность'
     edit_name: '🪪 Имя/Фамилия'
+    edit_contacts: '☎️ Контакты'
     skills_menu: '🛠️ Навыки'
     edit_skills: '✏️ Редактировать навыки'
     edit_resume: '📄 Резюме'

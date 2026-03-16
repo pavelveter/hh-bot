@@ -7,6 +7,7 @@ profile:
     <b>City:</b> {city}
     <b>Desired Position:</b> {desired_position}
     <b>Skills:</b> {skills}
+    <b>Contacts:</b> {contacts}
 
     <b>Resume:</b>
     {resume}
@@ -32,10 +33,14 @@ profile:
   edit_position_empty: 'Position cannot be empty. Please send it again.'
   edit_position_cleared: 'Desired position removed.'
   edit_position_updated: 'Position updated.'
-  edit_name_prompt: 'Send your name in format: <code>First Last</code> (last name optional).'
+  edit_name_prompt: 'Send your name in format: <code>First Middle Last</code>. Middle name and last name are optional.'
   edit_name_empty: 'Name cannot be empty. Please send it again.'
   edit_name_first_empty: 'First name cannot be empty. Please send it again.'
   edit_name_updated: 'Name updated.'
+  edit_contacts_prompt: "Send contacts in free form (tg, GitHub, website, phone, email, etc.). Use 'clear' to remove."
+  edit_contacts_empty: 'Contacts cannot be empty. Please send them again.'
+  edit_contacts_cleared: 'Contacts removed.'
+  edit_contacts_updated: 'Contacts updated.'
   edit_skills_prompt: "Send your skills (commas, new lines, or bullets are fine). Use 'clear' to remove."
   edit_skills_empty: 'Skills cannot be empty. Please send them again.'
   edit_skills_none: 'No skills detected. Please send them as bullets or commas.'
@@ -102,6 +107,7 @@ profile:
     edit_city: '🏙️ Edit City'
     edit_position: '🎯 Edit Position'
     edit_name: '🪪 Edit Name'
+    edit_contacts: '☎️ Contacts'
     skills_menu: '🛠️ Skills'
     edit_skills: '✏️ Edit Skills'
     edit_resume: '📄 Resume'

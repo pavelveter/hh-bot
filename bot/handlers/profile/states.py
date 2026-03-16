@@ -16,6 +16,7 @@ class EditProfile(StatesGroup):
     city = State()
     position = State()
     name = State()
+    contacts = State()
     skills = State()
     resume = State()
     llm = State()
