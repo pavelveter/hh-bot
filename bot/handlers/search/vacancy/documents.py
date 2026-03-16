@@ -20,7 +20,7 @@ from bot.utils.vacancy_docs import sanitize_cover_letter_text
 router = Router()
 logger = get_logger(__name__)
 
-GENERATION_TIMEOUT = 40  # seconds
+GENERATION_TIMEOUT = 90  # seconds
 DRAFT_UPDATE_INTERVAL = 0.8  # seconds
 MAX_DRAFT_TEXT_LENGTH = 4096
 

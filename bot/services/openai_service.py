@@ -27,6 +27,11 @@ class OpenAIService:
         return "Developer instruction is not enabled" in str(error)
 
     @staticmethod
+    def _should_inline_system_prompt(model: str) -> bool:
+        normalized = model.lower()
+        return "gemma" in normalized
+
+    @staticmethod
     def _merge_system_into_user_messages(
         messages: list[dict[str, str]],
     ) -> list[dict[str, str]]:
@@ -131,7 +136,11 @@ class OpenAIService:
 
         params = {
             "model": actual_model,
-            "messages": messages,
+            "messages": (
+                self._merge_system_into_user_messages(messages)
+                if self._should_inline_system_prompt(actual_model)
+                else messages
+            ),
             "temperature": temperature,
         }
 
@@ -221,7 +230,11 @@ class OpenAIService:
 
         params = {
             "model": actual_model,
-            "messages": messages,
+            "messages": (
+                self._merge_system_into_user_messages(messages)
+                if self._should_inline_system_prompt(actual_model)
+                else messages
+            ),
             "temperature": temperature,
             "stream": True,
         }
